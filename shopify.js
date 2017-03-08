@@ -23,10 +23,16 @@ exports.shopify =  {
 			return exports.shopify.customer.upate(id, changedFields);
 		}
 	},
-	products: {
+    products: {
+        count: function () {
+            return that._api.product.count();
+        },
+        get: function (id) {
+            return that._api.product.get(id);
+        },
 		inventory: {
-			get: function(productId){							
-				return that.productVariant.list(productId);
+			get: function(productId,params){							
+				return that._api.productVariant.get(productId,params);
 			},
 			update: function(variantId, oldInventory, newInventory){								
 				var updated = {
@@ -35,7 +41,8 @@ exports.shopify =  {
 					old_inventory_quantity: oldInventory
 				};
 				return that.productVariant.update(variantId, updated);
-			}
+            }
+            
 		}		
 	}
 };

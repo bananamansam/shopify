@@ -3,3 +3,11 @@ node_modules/
 TestData/
 
 _donotcheckin/
+
+typings/
+
+bin/
+
+obj/Debug/
+
+Shopify\.njsproj\.user
