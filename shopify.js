@@ -43,8 +43,14 @@ exports.shopify = {
 			return that._api.customer.get(id);
 		},
 		update: function (id, changedFields) {
-			return that._api.customer.upate(id, changedFields);
-		}
+			return exports.shopify.customer.upate(id, changedFields);
+        },
+        list: function () {
+            return that._api.customer.list();
+        },
+        delete: function (id) {
+            return that._api.customer.delete(id);
+        }
 	},
 	products: {
 		create: function (product) {

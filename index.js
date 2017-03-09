@@ -151,10 +151,10 @@ exports.handler = (event, context, callback) => {
             console.log(message);
             callback(message);
         } else {
-            console.log('CONTENT TYPE:', data.ContentType);
+            //console.log('CONTENT TYPE:', data.ContentType);
             console.log('Filename:', key);
-            console.log('SAMPLETEST:', process.env.SAMPLETEST);
-            console.log('Body:', data.Body.toString());
+            //console.log('SAMPLETEST:', process.env.SAMPLETEST);
+            //console.log('Body:', data.Body.toString());
             that.processCsv(data.Body.toString());
 
             callback(null, data.ContentType);

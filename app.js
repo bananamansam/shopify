@@ -108,6 +108,15 @@ var test = {
         handler.inventoryProcessing.updateShopify(map)
             .then(data => test.log(data))
             .catch(err => console.log('error: ' + err));
+    },
+    updateCustomers: function () {
+        var records = parse(fs.readFileSync('testdata/zSUBS-01.csv', 'utf8'), {
+            columns: true,
+            delimiter: ',',
+        })
+        records.forEach(function (record) {
+            console.log(record);
+        });
     }
 };
 
