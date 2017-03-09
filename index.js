@@ -6,6 +6,61 @@ const s3 = new aws.S3({ apiVersion: '2006-03-01' });
 const api = require('./shopify');
 
 var that = {
+    raiseError: function (err) {
+        console.log(err);
+    },
+    inventoryProcessing: {
+        getInventoryMap: function (records) {
+            var inventory = {};
+            records.forEach(r => {
+                var sku = r["Item Number"];
+                inventory[sku] = r;
+            });
+
+            return inventory;
+        },
+        createProduct: function (record) {
+            return api.shopify.products.create({
+                title: record["Description"],
+                vendor: 'Nexia Home',
+                variants: [{
+                    inventory_policy: "shopify",
+                    sku: record["Item Number"],
+                    inventory_quantity: record["Quantity"]
+                }]
+            });
+        },
+        updateShopify: function (inventoryMap) {
+            return api.shopify.products.list()
+                .then(products => {
+                    // process updates                    
+                    products.forEach(p => {
+                        if (p.variants) {
+                            p.variants.forEach(v => {
+                                // check if the variant is in our map and if the quantity has changed                                
+                                if (inventoryMap[v.sku] && v.inventory_quantity !== inventoryMap[v.sku].Quantity) {
+                                    api.shopify.products.variants.update(v.id, {
+                                        inventory_management: "shopify",
+                                        inventory_quantity: inventoryMap[v.sku].Quantity,
+                                        old_inventory_quantity: v.inventory_quantity
+                                    }).catch(err => that.raiseError(err));
+
+                                    inventoryMap[v.sku] = null;
+                                }
+                            });
+                        }
+                    });
+
+                    // process inserts
+                    for (key in inventoryMap) {
+                        var val = inventoryMap[key];
+                        if (val) {
+                            that.inventoryProcessing.createProduct(val).catch(err => that.raiseError(err));
+                        }
+                    }
+                });
+        }
+    },
     getCustomer: function (obj) {
         return {
             first_name: obj.FIRST_NAME,
@@ -38,7 +93,7 @@ var that = {
                 .then(result => console.log(result))
                 .catch(err => console.log(err));
         });
-        
+
     },
     processCsv: function (csvBody, forceUpperCase) {
         var formattedBody = forceUpperCase ? csvBody.toUpperCase() : csvBody,
@@ -79,9 +134,6 @@ exports.handler = (event, context, callback) => {
             callback(null, data.ContentType);
         }
     });
-
 };
 
-exports.processCsv = function (fileBody) {
-    that.processCsv(fileBody);
-};
+exports.inventoryProcessing = that.inventoryProcessing;
