@@ -24,26 +24,37 @@ var that = {
                 title: record["Description"],
                 vendor: 'Nexia Home',
                 variants: [{
-                    inventory_policy: "shopify",
+                    inventory_management: "shopify",
                     sku: record["Item Number"],
                     inventory_quantity: record["Quantity"]
                 }]
             });
         },
         updateShopify: function (inventoryMap) {
-            return api.shopify.products.list()
+            return api.shopify.products.getAll()
                 .then(products => {
+                    var promises = [];
                     // process updates                    
-                    products.forEach(p => {
+                    products.data.forEach(p => {
                         if (p.variants) {
                             p.variants.forEach(v => {
                                 // check if the variant is in our map and if the quantity has changed                                
-                                if (inventoryMap[v.sku] && v.inventory_quantity !== inventoryMap[v.sku].Quantity) {
-                                    api.shopify.products.variants.update(v.id, {
-                                        inventory_management: "shopify",
-                                        inventory_quantity: inventoryMap[v.sku].Quantity,
-                                        old_inventory_quantity: v.inventory_quantity
-                                    }).catch(err => that.raiseError(err));
+                                if (inventoryMap[v.sku]) {
+                                    if (v.inventory_quantity != inventoryMap[v.sku].Quantity) {
+                                        promises.push(api.shopify.products.variants.update(v.id, {
+                                            inventory_management: "shopify",
+                                            inventory_quantity: inventoryMap[v.sku].Quantity,
+                                            old_inventory_quantity: v.inventory_quantity
+                                        })
+                                            .then(data => {
+                                                data.action = 'updated';
+                                                return data;
+                                            })
+                                            .catch(err => that.raiseError({
+                                                item: p,
+                                                action: 'update'
+                                            })));
+                                    }
 
                                     inventoryMap[v.sku] = null;
                                 }
@@ -51,13 +62,28 @@ var that = {
                         }
                     });
 
-                    // process inserts
+                    // process inserts                    
                     for (key in inventoryMap) {
                         var val = inventoryMap[key];
                         if (val) {
-                            that.inventoryProcessing.createProduct(val).catch(err => that.raiseError(err));
+                            promises.push(that.inventoryProcessing.createProduct(val)
+                                .then(data => {
+                                    data.action = 'inserted';
+                                    return data;
+                                })
+                                .catch(err => that.raiseError({
+                                    item: val,
+                                    action: 'insert'
+                                })));
                         }
                     }
+
+                    return Promise.all(promises).then(processedRecords => {
+                        return {
+                            count: processedRecords.length,
+                            data: processedRecords
+                        }
+                    });
                 });
         }
     },

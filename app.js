@@ -36,31 +36,85 @@ var parse = require('csv-parse/lib/sync');
 
 
 var test = {
+    log: function (data, indent) {
+        fs.appendFileSync("TestData/output.json", JSON.stringify(data, null, indent || 2));
+    },
     getProductCount: function () {
         api.shopify.products.count().then((data) => console.log(data)).catch((errors) => console.log(errors));
     },
-    getAllProducts: function() {
-        api.shopify.products.list().then((data) => console.log(data)).catch((errors) => console.log(errors));    
+    getAllProducts: function (params) {
+        api.shopify.products.getAll(params).then((data) => test.log(data)).catch((errors) => console.log(errors));
     },
-    getAllVariants: function() {
-        api.shopify.products.list().then((data) => data.forEach(d => console.log(d.variants))).catch((errors) => console.log(errors));    
+    listProduct: function (page, limit) {
+        api.shopify.products.list({
+            page: page,
+            limit: limit
+        }).then((data) => console.log(data.length)).catch((errors) => console.log(errors));
     },
-    getProduct: function () {
-        api.shopify.products.get(9512457988).then((data) => console.log(data)).catch((errors) => console.log(errors));
+    getAllVariants: function () {
+        api.shopify.products.list().then((data) => data.forEach(d => console.log(d.variants))).catch((errors) => console.log(errors));
     },
-    getInventory: function () {
-        api.shopify.products.variants.get(38240220175, { title: "Default Title" }).then((data) => console.log(data)).catch((errors) => console.log(errors));
+    getProduct: function (id) {
+        api.shopify.products.get(id).then((data) => test.log(data)).catch((errors) => console.log(errors));
+    },
+    getInventory: function (variantId, filter) {
+        api.shopify.products.variants.get(variantId, filter).then((data) => console.log(data)).catch((errors) => console.log(errors));
+    },
+    getMatchingVariants: function (inventoryMap) {
+        api.shopify.products.getAll()
+            .then(products => {
+                var promises = [];
+                // process updates                    
+                products.data.forEach(p => {
+                    if (p.variants) {
+                        p.variants.forEach(v => {
+                            // check if the variant is in our map and if the quantity has changed                                                            
+                            if (inventoryMap[v.sku]) {
+                                if (v.inventory_quantity !== inventoryMap[v.sku].Quantity) {
+                                    test.log({
+                                        item: v,
+                                        action: 'update'
+                                    });
+                                }
+
+                                inventoryMap[v.sku] = null;
+                            }
+                        });
+                    }
+                });
+
+                // process inserts                    
+                for (key in inventoryMap) {
+                    var val = inventoryMap[key];
+                    if (val) {
+                        test.log({
+                            item: val,
+                            action: 'insert'
+                        });
+                    }
+                }
+
+                return Promise.all(promises);
+            });
     },
     updateShopifyInventory: function () {
-        var records = parse(fs.readFileSync('testdata/zINV-01.csv', 'utf8'), {
-            columns: true,
-            delimiter: ',',
-        }),
-            map = handler.inventoryProcessing.getInventoryMap(records);
+        var map,
+            records = parse(fs.readFileSync('testdata/zINV-01.csv', 'utf8'), {
+                columns: true,
+                delimiter: ',',
+            });
 
+        map = handler.inventoryProcessing.getInventoryMap(records);
         handler.inventoryProcessing.updateShopify(map)
-            .catch(err => console.log(err));
+            .then(data => test.log(data))
+            .catch(err => console.log('error: ' + err));
     }
 };
 
-test.getProduct();
+// test.getProduct(10471788431);
+// test.getInventory(10471788431);
+// test.getProduct(10471788431);
+// test.getProductCount();
+// test.getAllProducts({limit: 100});
+// test.listProduct(4, 50);
+// test.updateShopifyInventory();
