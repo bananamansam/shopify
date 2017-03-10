@@ -113,9 +113,18 @@ var test = {
         var records = parse(fs.readFileSync('testdata/zSUBS-01.csv', 'utf8'), {
             columns: true,
             delimiter: ',',
-        })
+        });
         records.forEach(function (record) {
-            console.log(record);
+            api.shopify.customers.search({ query: record["EMAIL"], fields: "email,id" }).then(shp => {
+                if (shp && shp.length > 0 && record["EMAIL"] == shp[0].email) {
+                    console.log("update api call: " + shp[0].id);
+                    api.shopify.customers.update(shp[0].id, handler.getCustomer(record));
+                } else {
+                    console.log("create api call: " + record["EMAIL"]);
+                    api.shopify.customers.create(handler.getCustomer(record));
+                };
+            })
+            .catch(err => console.log(err));
         });
     }
 };
@@ -127,3 +136,4 @@ var test = {
 // test.getAllProducts({limit: 100});
 // test.listProduct(4, 50);
 // test.updateShopifyInventory();
+test.updateCustomers();

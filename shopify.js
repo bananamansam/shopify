@@ -43,7 +43,7 @@ exports.shopify = {
 			return that._api.customer.get(id);
 		},
 		update: function (id, changedFields) {
-			return exports.shopify.customer.upate(id, changedFields);
+			return that._api.customer.update(id, changedFields);
         },
         list: function () {
             return that._api.customer.list();

@@ -113,25 +113,41 @@ var that = {
         records.forEach(function (record) {
         });
     },
-    processCustomers: function (records) {
-        records.forEach(function (record) {
-            api.shopify.customers.create(that.getCustomer(record))
-                .then(result => console.log(result))
-                .catch(err => console.log(err));
-        });
-
+    customerProcessing: {
+        updateCustomers: function () {
+            var records = parse(fs.readFileSync('testdata/zSUBS-01.csv', 'utf8'), {
+                columns: true,
+                delimiter: ',',
+            });
+            records.forEach(function (record) {
+                api.shopify.customers.search({ query: record["EMAIL"], fields: "email,id" }).then(shp => {
+                    if (shp && shp.length > 0 && record["EMAIL"] == shp[0].email) {
+                        console.log("update api call: " + shp[0].id);
+                        api.shopify.customers.update(shp[0].id, handler.getCustomer(record));
+                    } else {
+                        console.log("create api call: " + record["EMAIL"]);
+                        api.shopify.customers.create(handler.getCustomer(record));
+                    };
+                })
+                    .catch(err => console.log(err));
+            });
+        }
     },
-    processCsv: function (csvBody, forceUpperCase) {
+    processCsv: function (filename, csvBody, forceUpperCase) {
         var formattedBody = forceUpperCase ? csvBody.toUpperCase() : csvBody,
+            formattedFilename = filename.toUpperCase(),
             records = parse(formattedBody, {
                 columns: true,
                 delimiter: ',',
             });
-
-        if (process.env['IS_INVENTORY'] === "T")
+                   
+        //if (process.env['IS_INVENTORY'] === "T")
+        if (formattedFilename.indexOf('INVENTORY') !== -1)
             that.processInventory(records);
+        else if (formattedFilename.indexOf('CUSTOMER') !== -1)
+            that.customerProcessing.updateCustomers(records);
         else
-            that.processCustomers(records);
+            console.log("No processing done: " + formattedFilename.indexOf('INVENTORY'));
     }
 };
 
@@ -155,7 +171,7 @@ exports.handler = (event, context, callback) => {
             console.log('Filename:', key);
             //console.log('SAMPLETEST:', process.env.SAMPLETEST);
             //console.log('Body:', data.Body.toString());
-            that.processCsv(data.Body.toString());
+            that.processCsv(key,data.Body.toString());
 
             callback(null, data.ContentType);
         }
@@ -163,3 +179,4 @@ exports.handler = (event, context, callback) => {
 };
 
 exports.inventoryProcessing = that.inventoryProcessing;
+exports.getCustomer = that.getCustomer;
