@@ -30,7 +30,8 @@ var that = {
                 }]
             });
         },
-        updateShopify: function (inventoryMap) {
+        updateInventory: function (records) {
+            var inventoryMap = that.inventoryProcessing.getInventoryMap(records);                                    
             return api.shopify.products.getAll()
                 .then(products => {
                     var promises = [];
@@ -87,51 +88,42 @@ var that = {
                 });
         }
     },
-    getCustomer: function (obj) {
-        return {
-            first_name: obj.FIRST_NAME,
-            last_name: obj.LAST_NAME,
-            email: obj.EMAIL,
-            accepts_marketing: obj["OPTED OUT"] === "F",
-            verified_email: false,
-            tax_exempt: false,
-            addresses: [{
-                address1: '',
-                address2: '',
-                city: obj.HOUSE_CITY,
-                province: '',
-                zip: obj.HOUSE_ZIP_CODE,
-                phone: '',
-                province_code: obj.HOUSE_STATE,
-                country_code: 'US',
-                country_name: 'United States',
-                default: true
-            }]
-        };
-    },
-    processInventory: function (records) {
-        records.forEach(function (record) {
-        });
-    },
     customerProcessing: {
+        getCustomer: function (obj) {
+            return {
+                first_name: obj.FIRST_NAME,
+                last_name: obj.LAST_NAME,
+                email: obj.EMAIL,
+                accepts_marketing: obj["OPTED OUT"] === "F",
+                verified_email: false,
+                tax_exempt: false,
+                addresses: [{
+                    address1: '',
+                    address2: '',
+                    city: obj.HOUSE_CITY,
+                    province: '',
+                    zip: obj.HOUSE_ZIP_CODE,
+                    phone: '',
+                    province_code: obj.HOUSE_STATE,
+                    country_code: 'US',
+                    country_name: 'United States',
+                    default: true
+                }]
+            };
+        },
         updateCustomers: function (records) {
-            //var records = parse(fs.readFileSync('testdata/zSUBS-01.csv', 'utf8'), {
-            //    columns: true,
-            //    delimiter: ',',
-            //});
             var promises = [];
             records.forEach(function (record) {
-                var searchpromise = api.shopify.customers.search({ query: record["EMAIL"], fields: "email,id" }).then(shp => {
+                promises.push(api.shopify.customers.search({ query: record["EMAIL"], fields: "email,id" }).then(shp => {
                     if (shp && shp.length > 0 && record["EMAIL"] == shp[0].email) {
                         console.log("update api call: " + shp[0].id);
-                        return api.shopify.customers.update(shp[0].id, handler.getCustomer(record));
+                        return api.shopify.customers.update(shp[0].id, that.customerProcessing.getCustomer(record));
                     } else {
                         console.log("create api call: " + record["EMAIL"]);
-                        return api.shopify.customers.create(handler.getCustomer(record));
+                        return api.shopify.customers.create(that.customerProcessing.getCustomer(record));
                     };
                 })
-                    .catch(err => console.log(err));
-                promises.push(searchpromise);
+                .catch(err => console.log(err)));
             });
             return Promise.all(promises);
         }
@@ -143,14 +135,16 @@ var that = {
                 columns: true,
                 delimiter: ',',
             });
-                   
+
         //if (process.env['IS_INVENTORY'] === "T")
-        if (formattedFilename.indexOf('INVENTORY') !== -1)
-            return that.processInventory(records);
-        else (formattedFilename.indexOf('CUSTOMER') !== -1)
+        if (formattedFilename.indexOf('INVENTORY') !== -1) {
+            return that.inventoryProcessing.updateInventory(records);
+        } else if (formattedFilename.indexOf('CUSTOMER') !== -1) {
             return that.customerProcessing.updateCustomers(records);
-        //else
-        //    console.log("No processing done: " + formattedFilename.indexOf('INVENTORY'));
+        } else {
+            console.log("No processing done: " + formattedFilename);
+            return Promise.resolve({ action: 'no action defined for folder' });
+        }
     }
 };
 
@@ -163,21 +157,15 @@ exports.handler = (event, context, callback) => {
         Key: key,
     };
 
-    s3.getObject(params, (err, data) => {
+    s3.getObject(params, (err, data) => {        
         if (err) {
             console.log(err);
-            const message = `Error getting object ${key} from bucket ${bucket}. Make sure they exist and your bucket is in the same region as this function.`;
-            console.log(message);
-            callback(message);
+            callback(`Error getting object ${key} from bucket ${bucket}. Make sure they exist and your bucket is in the same region as this function.`);
         } else {
-            //console.log('CONTENT TYPE:', data.ContentType);
             console.log('Filename:', key);
-            //console.log('SAMPLETEST:', process.env.SAMPLETEST);
-            //console.log('Body:', data.Body.toString());
-            that.processCsv(key, data.Body.toString()).then(data => callback(null, data.ContentType));
+
+            // callback(Error error, Object result);
+            that.processCsv(key, data.Body.toString()).then(data => callback(null, data));
         }
     });
 };
-
-//exports.inventoryProcessing = that.inventoryProcessing;
-//exports.getCustomer = that.getCustomer;
