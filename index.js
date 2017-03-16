@@ -13,20 +13,20 @@ var that = {
         getInventoryMap: function (records) {
             var inventory = {};
             records.forEach(r => {
-                var sku = r["Item Number"];
-                inventory[sku] = r;
+                var barcode = r["ITEM NAME"];
+                inventory[barcode] = r;
             });
 
             return inventory;
         },
         createProduct: function (record) {
             return api.shopify.products.create({
-                title: record["Description"],
+                title: record["ITEM DESCRIPTION"],
                 vendor: 'Nexia Home',
                 variants: [{
                     inventory_management: "shopify",
-                    sku: record["Item Number"],
-                    inventory_quantity: record["Quantity"]
+                    barcode: record["ITEM NAME"],
+                    inventory_quantity: record["QUANTITY"]
                 }]
             });
         },
@@ -40,11 +40,11 @@ var that = {
                         if (p.variants) {
                             p.variants.forEach(v => {
                                 // check if the variant is in our map and if the quantity has changed                                
-                                if (inventoryMap[v.sku]) {
-                                    if (v.inventory_quantity != inventoryMap[v.sku].Quantity) {
+                                if (inventoryMap[v.barcode]) {
+                                    if (v.inventory_quantity != inventoryMap[v.barcode].Quantity) {
                                         promises.push(api.shopify.products.variants.update(v.id, {
                                             inventory_management: "shopify",
-                                            inventory_quantity: inventoryMap[v.sku].Quantity,
+                                            inventory_quantity: inventoryMap[v.barcode].Quantity,
                                             old_inventory_quantity: v.inventory_quantity
                                         })
                                             .then(data => {
@@ -57,7 +57,7 @@ var that = {
                                             })));
                                     }
 
-                                    inventoryMap[v.sku] = null;
+                                    inventoryMap[v.barcode] = null;
                                 }
                             });
                         }
@@ -97,6 +97,7 @@ var that = {
                 accepts_marketing: obj["OPTED OUT"] === "F",
                 verified_email: false,
                 tax_exempt: false,
+                note: obj["ACTIVATED_AT"] + "; " + obj["PAY_GROUP"] + "; " + obj["CHANNEL_GROUP"],
                 addresses: [{
                     address1: '',
                     address2: '',
