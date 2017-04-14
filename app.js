@@ -99,7 +99,7 @@ var test = {
     },
     updateShopifyInventory: function () {
         var map,
-            records = parse(fs.readFileSync('testdata/zINV-01.csv', 'utf8'), {
+            records = parse(fs.readFileSync('testdata/Copy of NXT Inventory Onhand Balance Report - NettableShort.csv', 'utf8'), {
                 columns: true,
                 delimiter: ',',
             });
@@ -135,5 +135,5 @@ var test = {
 // test.getProductCount();
 // test.getAllProducts({limit: 100});
 // test.listProduct(4, 50);
-// test.updateShopifyInventory();
-test.updateCustomers();
+ test.updateShopifyInventory();
+//test.updateCustomers();

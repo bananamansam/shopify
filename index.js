@@ -41,11 +41,11 @@ var that = {
                             p.variants.forEach(v => {
                                 // check if the variant is in our map and if the quantity has changed                                
                                 if (inventoryMap[v.barcode]) {
-                                    if (v.inventory_quantity != inventoryMap[v.barcode].Quantity) {
+                                    if (v.inventory_quantity != inventoryMap[v.barcode].QUANTITY) {
                                         promises.push(api.shopify.products.variants.update(v.id, {
                                             inventory_management: "shopify",
-                                            inventory_quantity: inventoryMap[v.barcode].Quantity,
-                                            old_inventory_quantity: v.inventory_quantity
+                                            inventory_quantity: inventoryMap[v.barcode].QUANTITY
+                                            //,old_inventory_quantity: v.inventory_quantity
                                         })
                                             .then(data => {
                                                 data.action = 'updated';
@@ -170,3 +170,5 @@ exports.handler = (event, context, callback) => {
         }
     });
 };
+
+//exports.inventoryProcessing=that.inventoryProcessing; 
